@@ -46,7 +46,7 @@
   "systemd": {
     "units": [
       {
-        "contents": "[Unit]\nDescription=Install software with rpm-ostree\nAfter=systemd-machine-id-commit.service\nAfter=network-online.target\n# We run before `zincati.service` to avoid conflicting rpm-ostree transactions.\nBefore=zincati.service\nConditionPathExists=!/var/lib/%N.stamp\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\n# `--allow-inactive` ensures that rpm-ostree does not return an error\n# if the package is already installed. This is useful if the package is\n# added to the root image in a future Fedora CoreOS release as it will\n# prevent the service from failing.\nExecStart=/usr/bin/rpm-ostree install --apply-live --allow-inactive xe-guest-utilities-latest\nExecStart=/usr/bin/rpm-ostree install --apply-live --allow-inactive nmap\nExecStart=/bin/touch /var/lib/%N.stamp\n# Now reboot to make changes take effect\nExecStart=/usr/bin/systemctl reboot\n\n[Install]\nWantedBy=multi-user.target\n",
+        "contents": "[Unit]\nDescription=Install software with rpm-ostree\nAfter=systemd-machine-id-commit.service\nAfter=network-online.target\n# We run before `zincati.service` to avoid conflicting rpm-ostree transactions.\nBefore=zincati.service\nConditionPathExists=!/var/lib/%N.stamp\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\n# `--allow-inactive` ensures that rpm-ostree does not return an error\n# if the package is already installed. This is useful if the package is\n# added to the root image in a future Fedora CoreOS release as it will\n# prevent the service from failing.\nExecStart=/usr/bin/rpm-ostree install --apply-live --allow-inactive xe-guest-utilities-latest\nExecStart=/bin/touch /var/lib/%N.stamp\n# Now reboot to make changes take effect\nExecStart=/usr/bin/systemctl reboot\n\n[Install]\nWantedBy=multi-user.target\n",
         "enabled": true,
         "name": "rpm-ostree-install.service"
       },
@@ -56,9 +56,14 @@
         "name": "postinst2.service"
       },
       {
-        "contents": "[Unit]\nDescription=Portainer Admin Container\nAfter=docker.service\nRequires=docker.service network.target network-online.target\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nTimeoutStartSec=0\nExecStartPre=-/usr/bin/docker stop %n\nExecStartPre=-/usr/bin/docker rm %n\nExecStartPre=/usr/bin/docker pull portainer/portainer-ce\n# ExecStart=-/usr/bin/mkdir -p /mnt/shared_nfs/portainer_data\n# Privileged mode is required for binding to local socket to work due to SELINUX (https://github.com/portainer/portainer/issues/849)\nExecStart=/usr/bin/docker run --security-opt label=disable -d -p 9443:9443 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer_data:/data portainer/portainer-ce\nExecStop=/usr/bin/docker stop -t 15 %n\n\n[Install]\nWantedBy=multi-user.target",
+        "contents": "[Unit]\nDescription=Portainer Admin Container\nAfter=docker.service\nRequires=docker.service network.target network-online.target\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nTimeoutStartSec=0\nExecStartPre=-/usr/bin/docker stop %n\nExecStartPre=-/usr/bin/docker rm %n\nExecStartPre=/usr/bin/docker pull portainer/portainer-ce\n# ExecStart=-/usr/bin/mkdir -p /mnt/shared_nfs/portainer_data\nExecStart=-/usr/bin/mkdir -p /portainer\n# Privileged mode is required for binding to local socket to work due to SELINUX (https://github.com/portainer/portainer/issues/849)\nExecStart=/usr/bin/docker run --security-opt label=disable -d -p 9443:9443 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer_data:/data portainer/portainer-ce\nExecStop=/usr/bin/docker stop -t 15 %n\n\n[Install]\nWantedBy=multi-user.target",
         "enabled": true,
         "name": "docker.portainer.service"
+      },
+      {
+        "contents": "[Unit]\nDescription=Portainer Agent\nAfter=docker.portainer.service\nRequires=docker.service docker.portainer.service network.target network-online.target\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nTimeoutStartSec=0\nExecStartPre=-/usr/bin/docker stop %n\nExecStartPre=-/usr/bin/docker rm %n\nExecStartPre=/usr/bin/docker pull portainer/agent\nExecStart=/usr/bin/docker run --security-opt label=disable -d -p 9001:9001 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/lib/docker/volumes:/var/lib/docker/volumes portainer/agent\nExecStop=/usr/bin/docker stop -t 15 %n\n\n[Install]\nWantedBy=multi-user.target",
+        "enabled": true,
+        "name": "docker.portainer_agent.service"
       }
     ]
   }

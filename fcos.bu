@@ -49,7 +49,6 @@ systemd:
         # added to the root image in a future Fedora CoreOS release as it will
         # prevent the service from failing.
         ExecStart=/usr/bin/rpm-ostree install --apply-live --allow-inactive xe-guest-utilities-latest
-        ExecStart=/usr/bin/rpm-ostree install --apply-live --allow-inactive nmap
         ExecStart=/bin/touch /var/lib/%N.stamp
         # Now reboot to make changes take effect
         ExecStart=/usr/bin/systemctl reboot
@@ -95,6 +94,7 @@ systemd:
         ExecStartPre=-/usr/bin/docker rm %n
         ExecStartPre=/usr/bin/docker pull portainer/portainer-ce
         # ExecStart=-/usr/bin/mkdir -p /mnt/shared_nfs/portainer_data
+        ExecStart=-/usr/bin/mkdir -p /portainer
         # Privileged mode is required for binding to local socket to work due to SELINUX (https://github.com/portainer/portainer/issues/849)
         ExecStart=/usr/bin/docker run --security-opt label=disable -d -p 9443:9443 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/portainer_data:/data portainer/portainer-ce
         ExecStop=/usr/bin/docker stop -t 15 %n
@@ -102,3 +102,23 @@ systemd:
         [Install]
         WantedBy=multi-user.target
 
+    - name: docker.portainer_agent.service
+      enabled: true
+      contents: |-
+        [Unit]
+        Description=Portainer Agent
+        After=docker.portainer.service
+        Requires=docker.service docker.portainer.service network.target network-online.target
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        TimeoutStartSec=0
+        ExecStartPre=-/usr/bin/docker stop %n
+        ExecStartPre=-/usr/bin/docker rm %n
+        ExecStartPre=/usr/bin/docker pull portainer/agent
+        ExecStart=/usr/bin/docker run --security-opt label=disable -d -p 9001:9001 --name %n --restart always -v /var/run/docker.sock:/var/run/docker.sock -v /var/lib/docker/volumes:/var/lib/docker/volumes portainer/agent
+        ExecStop=/usr/bin/docker stop -t 15 %n
+
+        [Install]
+        WantedBy=multi-user.target
