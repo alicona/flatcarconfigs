@@ -27,6 +27,16 @@ storage:
           # Raise console message logging level from DEBUG (7) to WARNING (4)
           # to hide audit messages from the interactive console
           kernel.printk=4
+    - path: /etc/zincati/config.d/55-updates-strategy.toml
+      mode: 0644
+      contents:
+        inline: |
+          [updates]
+          strategy = "periodic"
+          [[updates.periodic.window]]
+          days = [ "Mon", "Thu"]
+          start_time = "1:00"
+          length_minutes = 60
 systemd:
   units:
     # Installing software as a layered package with rpm-ostree
